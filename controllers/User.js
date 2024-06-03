@@ -129,6 +129,7 @@ export const getAllCartItems = async (req, res, next) => {
       path: 'cart.product',
       model: 'Products',
     });
+    console.log(user);
     const cartItems = user.cart;
     return res.status(200).json(cartItems);
   } catch (err) {
@@ -150,10 +151,10 @@ export const placeOrder = async (req, res, next) => {
       address,
     });
     await order.save();
-
-    user.cart.save();
-
     user.cart = [];
+    products.map((product) => (user.orders = [...user.orders, product._id]));
+    await user.save();
+
     await user.save();
 
     return res
@@ -182,10 +183,9 @@ export const addToFavorites = async (req, res, next) => {
     const { id } = req.user;
 
     const user = await User.findById(id);
-    if (
-      !user?.favourites.includes(new mongoose.Types.ObjectId(data?.productId))
-    ) {
-      user.favourites.push(new mongoose.Types.ObjectId(data?.productId));
+    if (!user?.favourites.includes(data?.productID)) {
+      user.favourites = [...user.favourites, data?.productID];
+
       await user.save();
 
       return res.status(200).json({
@@ -200,12 +200,17 @@ export const addToFavorites = async (req, res, next) => {
 
 export const removeFromFavorites = async (req, res, next) => {
   try {
-    const { productId } = req.body;
+    const { productID } = req.body;
+
     const userJWT = req.user;
     const user = await User.findById(userJWT.id);
 
-    user.favourites = user.favourites.filter((fav) => fav === productId);
-    await user.save();
+    const productIndex = user.favourites.indexOf(productID);
+
+    if (productIndex > -1) {
+      user.favourites.splice(productIndex, 1);
+      await user.save();
+    }
 
     return res
       .status(200)
